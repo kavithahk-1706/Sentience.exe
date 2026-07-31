@@ -1,0 +1,5 @@
+venv/
+docs/
+sentience_exe_role_breakdown.md
+sentience_exe_ai_tool_prompts.md
+.env
