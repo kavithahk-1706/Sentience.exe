@@ -1,757 +1,731 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>sentience.exe</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.11/purify.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:        #0c0f0d;
-    --surface:   #141713;
-    --surface-2: #191d18;
-    --border:    #232922;
-    --accent:    #8fe3b0;
-    --accent-dim:#5a9c78;
-    --amber:     #e8a33d;
-    --text:      #eceee8;
-    --text-mute: #8a8f86;
-    --text-faint:#565b52;
-  }
-  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-  ::-webkit-scrollbar { width: 7px; height: 7px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+/* ── THEME TOKENS ─────────────────────────────────────────── */
+:root {
+  --periwinkle:       #9BAEE8;
+  --periwinkle-dim:   rgba(155,174,232,0.10);
+  --periwinkle-muted: rgba(155,174,232,0.35);
+  --sage:             #85B5A0;
+  --sage-dim:         rgba(133,181,160,0.12);
+  --sage-muted:       rgba(133,181,160,0.38);
+  --blush:            #C9889A;
+}
 
-  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
-  .mono { font-family: 'JetBrains Mono', monospace; }
+[data-theme="dark"] {
+  --bg:        #0f1117;
+  --surface:   #141720;
+  --surface-2: #1b1f2e;
+  --border:    #252a3a;
+  --border-subtle: #1e2230;
+  --text:      #e8eaf2;
+  --text-mute: #6b7090;
+  --text-faint:#32384f;
+  --input-bg:  #141720;
+  --modal-bg:  #141720;
+}
+[data-theme="light"] {
+  --bg:        #f5f6fa;
+  --surface:   #ffffff;
+  --surface-2: #eef0f8;
+  --border:    #d8dbed;
+  --border-subtle: #e5e7f4;
+  --text:      #111827;
+  --text-mute: #5c6480;
+  --text-faint:#b0b5cc;
+  --input-bg:  #ffffff;
+  --modal-bg:  #ffffff;
+}
 
-  @keyframes fadeUp { from { opacity:0; transform:translateY(6px);} to {opacity:1; transform:translateY(0);} }
-  .bubble-in { animation: fadeUp .22s cubic-bezier(.2,.7,.3,1) both; }
+/* ── BASE ─────────────────────────────────────────────────── */
+*, *::before, *::after { scrollbar-width: thin; scrollbar-color: var(--border) transparent; box-sizing: border-box; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  transition: background .2s, color .2s;
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
 
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  .cursor-blink { animation: blink 1s step-end infinite; }
+/* ── ANIMATIONS ───────────────────────────────────────────── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.bubble-in { animation: fadeUp .18s cubic-bezier(.2,.7,.3,1) both; }
 
-  @keyframes dotPulse { 0%,80%,100%{opacity:.25; transform:scale(.85)} 40%{opacity:1; transform:scale(1)} }
-  .dot { animation: dotPulse 1.3s infinite; }
-  .dot:nth-child(2){ animation-delay:.18s } .dot:nth-child(3){ animation-delay:.36s }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.cursor-blink { animation: blink 1.1s step-end infinite; }
 
-  .prose-bot code { background:#1e2320; padding:.1em .4em; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:.85em; }
-  .prose-bot pre { background:#0f1210; border:1px solid var(--border); border-radius:10px; padding:.75em 1em; overflow-x:auto; margin:.4em 0; }
-  .prose-bot pre code { background:none; padding:0; }
-  .prose-bot a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-  .prose-bot p { margin:0; }
-  .prose-bot ul, .prose-bot ol { margin:.2em 0 .2em 1.1em; }
-  .prose-bot strong { color: #fff; font-weight:600; }
+@keyframes dotPulse { 0%,80%,100%{opacity:.2;transform:scale(.75)} 40%{opacity:1;transform:scale(1)} }
+.dot { animation: dotPulse 1.3s infinite; display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--text-mute); }
+.dot:nth-child(2){animation-delay:.18s}.dot:nth-child(3){animation-delay:.36s}
 
-  .msg-actions { opacity:0; transition:opacity .12s ease; }
-  .msg-row:hover .msg-actions { opacity:1; }
+@keyframes pulse-ring { 0%{transform:scale(1);opacity:.5} 100%{transform:scale(1.5);opacity:0} }
+.mic-active .pulse-ring { animation: pulse-ring .9s ease-out infinite; }
 
-  .sidebar-item.active { background: var(--surface-2); border-color: var(--border); }
+/* ── SIDEBAR GRAIN ────────────────────────────────────────── */
+[data-theme="dark"] #sidebar {
+  background: linear-gradient(180deg, #111520 0%, #0d1018 100%);
+}
+[data-theme="light"] #sidebar {
+  background: #ffffff;
+}
 
-  textarea::placeholder { color: var(--text-faint); }
+/* ── LOGO ─────────────────────────────────────────────────── */
+.logo-text { letter-spacing: -0.02em; }
+.logo-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: var(--periwinkle);
+  border-radius: 50%;
+  margin-left: 2px;
+  vertical-align: middle;
+  position: relative; top: -1px;
+  box-shadow: 0 0 6px var(--periwinkle);
+}
 
-  @media (max-width: 768px) {
-    #sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; transform: translateX(-100%); transition: transform .2s ease; }
-    #sidebar.open { transform: translateX(0); }
-    #sidebarScrim { display:none; }
-    #sidebarScrim.open { display:block; }
-  }
+/* ── PROSE (bot messages) ─────────────────────────────────── */
+.prose-bot { line-height: 1.7; }
+.prose-bot code {
+  background: var(--surface-2);
+  padding:.1em .35em; border-radius:3px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:.8em;
+  color: var(--periwinkle);
+}
+.prose-bot pre {
+  background: var(--surface-2);
+  border:1px solid var(--border);
+  border-radius:6px; padding:.75em 1em;
+  overflow-x:auto; margin:.5em 0;
+}
+.prose-bot pre code { background:none; padding:0; color: var(--text); }
+.prose-bot a { color: var(--periwinkle); text-decoration:underline; text-underline-offset:2px; text-decoration-color: var(--periwinkle-muted); }
+.prose-bot p { margin:0 0 .35em; }
+.prose-bot p:last-child { margin-bottom: 0; }
+.prose-bot strong { font-weight:600; }
+.prose-bot ul, .prose-bot ol { padding-left: 1.25em; margin: .35em 0; }
+.prose-bot li { margin: .15em 0; }
+
+/* ── BOT BUBBLE ───────────────────────────────────────────── */
+.bot-bubble {
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 14px 14px 14px 3px;
+  padding: 9px 14px;
+  font-size: .875rem;
+  line-height: 1.55;
+  word-break: break-words;
+}
+[data-theme="dark"] .bot-bubble {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+[data-theme="light"] .bot-bubble {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* ── USER BUBBLE ──────────────────────────────────────────── */
+.user-bubble {
+  background: var(--sage);
+  color: #0e1a14;
+  border-radius: 14px 14px 3px 14px;
+  padding: 9px 14px;
+  font-size: .875rem;
+  line-height: 1.55;
+  word-break: break-words;
+  font-weight: 500;
+  box-shadow: 0 2px 16px var(--sage-dim);
+}
+[data-theme="light"] .user-bubble {
+  background: var(--sage);
+  color: #0e1a14;
+}
+
+/* ── MSG ACTIONS ─────────────────────────────────────────── */
+.msg-actions { opacity:0; transition:opacity .12s; }
+.msg-row:hover .msg-actions { opacity:1; }
+
+/* ── SIDEBAR ITEM ────────────────────────────────────────── */
+.sidebar-item {
+  transition: background .1s;
+  border-radius: 6px;
+}
+.sidebar-item:hover { background: var(--surface-2); }
+.sidebar-item.active { background: var(--surface-2); }
+
+/* ── SEND BUTTON ─────────────────────────────────────────── */
+#sendBtn {
+  background: var(--periwinkle);
+  color: #0d1510;
+  font-weight: 600;
+  transition: opacity .15s, box-shadow .15s;
+}
+#sendBtn:hover:not(:disabled) {
+  opacity: .9;
+  box-shadow: 0 0 12px var(--periwinkle-muted);
+}
+#sendBtn:disabled { opacity:.2; }
+
+/* ── MIC BUTTON ──────────────────────────────────────────── */
+#micBtn { transition: background .2s, border-color .2s, box-shadow .2s; }
+#micBtn:hover { border-color: var(--text-mute) !important; }
+
+/* ── INPUT FOCUS ──────────────────────────────────────────── */
+#messageInput:focus {
+  border-color: var(--periwinkle-muted) !important;
+  box-shadow: 0 0 0 3px var(--periwinkle-dim);
+  outline: none;
+}
+
+/* ── NEW CHAT BTN ─────────────────────────────────────────── */
+#newChatBtn { transition: border-color .15s, color .15s; }
+#newChatBtn:hover { border-color: var(--text-mute) !important; color: var(--text) !important; }
+
+/* ── EMPTY STATE ACCENT ───────────────────────────────────── */
+.empty-slash { color: var(--periwinkle); opacity: .6; }
+
+/* ── STATUS DOT PULSE ─────────────────────────────────────── */
+@keyframes statusPulse { 0%,100%{opacity:.7} 50%{opacity:1} }
+#statusDot { animation: statusPulse 2.5s ease-in-out infinite; }
+
+/* ── MOBILE ──────────────────────────────────────────────── */
+@media (max-width:768px) {
+  #sidebar { position:fixed;inset:0 auto 0 0;z-index:40;transform:translateX(-100%);transition:transform .2s ease; }
+  #sidebar.open { transform:translateX(0); }
+  #sidebarScrim { display:none; }
+  #sidebarScrim.open { display:block; }
+}
+
+textarea::placeholder { color: var(--text-faint); }
+textarea { font-family: 'Inter', sans-serif; }
 </style>
 </head>
 <body class="h-screen overflow-hidden">
-
 <div class="flex h-screen">
 
-  <!-- Mobile scrim -->
-  <div id="sidebarScrim" class="fixed inset-0 bg-black/60 z-30 md:hidden"></div>
+<!-- Mobile scrim -->
+<div id="sidebarScrim" class="fixed inset-0 bg-black/60 z-30 md:hidden"></div>
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="w-72 shrink-0 h-full flex flex-col border-r" style="background:var(--surface); border-color:var(--border);">
-    <div class="p-3 border-b" style="border-color:var(--border);">
-      <button id="newChatBtn" class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:brightness-110" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        New chat
-        <span class="ml-auto mono text-[10px]" style="color:var(--text-faint);">⌘K</span>
-      </button>
+<!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+<aside id="sidebar" class="w-64 shrink-0 h-full flex flex-col border-r" style="border-color:var(--border);">
+  <div class="px-4 py-4 border-b" style="border-color:var(--border);">
+    <div class="flex items-center gap-2 mb-3.5">
+      <span class="mono font-medium text-sm logo-text" style="color:var(--text);">sentience.exe<span class="logo-dot"></span></span>
     </div>
-
-    <div id="convoList" class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5"></div>
-
-    <div class="p-3 border-t flex flex-col gap-1.5" style="border-color:var(--border);">
-      <button id="exportBtn" class="w-full text-left px-3 py-2 rounded-md text-xs flex items-center gap-2 hover:brightness-110 transition" style="color:var(--text-mute); background:transparent;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export conversation
-      </button>
-      <button id="settingsOpenBtn" class="w-full text-left px-3 py-2 rounded-md text-xs flex items-center gap-2 hover:brightness-110 transition" style="color:var(--text-mute);">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Endpoint settings
-      </button>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <div class="flex-1 flex flex-col min-w-0 h-full">
-
-    <!-- Header / status line -->
-    <header class="border-b px-4 py-3 flex items-center gap-3 shrink-0" style="border-color:var(--border);">
-      <button id="sidebarToggle" class="md:hidden p-1.5 -ml-1 rounded hover:brightness-125" style="color:var(--text-mute);">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-      <div class="min-w-0 flex-1">
-        <h1 id="convoTitle" class="text-sm font-medium truncate" style="color:var(--text);">sentience.exe</h1>
-        <p class="mono text-[10.5px] truncate flex items-center gap-1.5" style="color:var(--text-faint);">
-          <span id="statusDot" class="inline-block w-1.5 h-1.5 rounded-full" style="background:var(--accent);"></span>
-          <span id="statusLine">status: idle · <span id="endpointLabel"></span></span>
-          <span class="cursor-blink">▍</span>
-        </p>
-      </div>
-    </header>
-
-    <!-- Chat area -->
-    <main id="chatArea" class="flex-1 overflow-y-auto px-4 py-6">
-      <div class="max-w-2xl w-full mx-auto flex flex-col gap-4" id="chatInner">
-        <div id="emptyState" class="text-center mt-16">
-          <p class="mono text-xs" style="color:var(--text-faint);">no active session</p>
-          <p class="text-sm mt-1" style="color:var(--text-mute);">send a message to begin</p>
-        </div>
-      </div>
-    </main>
-
-    <!-- Input -->
-    <footer class="border-t px-4 py-3.5 shrink-0" style="border-color:var(--border);">
-      <div id="editBanner" class="hidden max-w-2xl w-full mx-auto mb-2 px-3 py-1.5 rounded-md text-xs flex items-center justify-between" style="background:var(--surface-2); border:1px solid var(--border); color:var(--amber);">
-        <span>Editing message — sending will replace everything after it</span>
-        <button id="cancelEditBtn" class="hover:underline">cancel</button>
-      </div>
-      <form id="chatForm" class="max-w-2xl w-full mx-auto flex items-end gap-2">
-        <textarea
-          id="messageInput"
-          rows="1"
-          placeholder="Message sentience.exe…"
-          class="flex-1 resize-none rounded-2xl px-4 py-2.5 text-sm leading-snug focus:outline-none"
-          style="background:var(--surface); border:1px solid var(--border); color:var(--text);"
-        ></textarea>
-        <button type="submit" id="sendBtn"
-          class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition disabled:opacity-30 disabled:cursor-not-allowed"
-          style="background:var(--accent); color:#0c0f0d;">
-          <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline>
-          </svg>
-          <svg id="stopIcon" class="hidden" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
-        </button>
-      </form>
-      <p id="errorMsg" class="hidden max-w-2xl w-full mx-auto text-xs mt-2" style="color:#e8746b;"></p>
-      <p class="max-w-2xl w-full mx-auto text-[10.5px] mono mt-2" style="color:var(--text-faint);">enter to send · shift+enter for newline</p>
-    </footer>
+    <button id="newChatBtn" class="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium border transition mono" style="border-color:var(--border);background:transparent;color:var(--text-mute);">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      new chat
+      <span class="ml-auto" style="color:var(--text-faint);">⌘K</span>
+    </button>
   </div>
+
+  <div id="convoList" class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-0.5"></div>
+
+  <div class="p-2 border-t flex flex-col gap-0.5" style="border-color:var(--border);">
+    <button id="themeToggle" class="sidebar-item w-full text-left px-3 py-2 text-xs flex items-center gap-2 mono" style="color:var(--text-mute);">
+      <svg id="themeIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <span id="themeLabel">light mode</span>
+    </button>
+    <button id="exportBtn" class="sidebar-item w-full text-left px-3 py-2 text-xs flex items-center gap-2 mono" style="color:var(--text-mute);">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      export
+    </button>
+    <button id="settingsOpenBtn" class="sidebar-item w-full text-left px-3 py-2 text-xs flex items-center gap-2 mono" style="color:var(--text-mute);">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      endpoint
+    </button>
+  </div>
+</aside>
+
+<!-- ── MAIN ────────────────────────────────────────────────── -->
+<div class="flex-1 flex flex-col min-w-0 h-full">
+
+  <header class="border-b px-5 py-3 flex items-center gap-3 shrink-0" style="border-color:var(--border);background:var(--surface);">
+    <button id="sidebarToggle" class="md:hidden p-1.5 -ml-1 rounded-md" style="color:var(--text-mute);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="min-w-0 flex-1">
+      <h1 id="convoTitle" class="text-sm font-medium truncate" style="color:var(--text);">sentience.exe</h1>
+      <p class="mono text-[10px] truncate flex items-center gap-1.5 mt-0.5" style="color:var(--text-faint);">
+        <span id="statusDot" class="inline-block w-1.5 h-1.5 rounded-full" style="background:var(--periwinkle);"></span>
+        <span id="statusLine">idle · <span id="endpointLabel"></span></span>
+        <span class="cursor-blink">▍</span>
+      </p>
+    </div>
+  </header>
+
+  <main id="chatArea" class="flex-1 overflow-y-auto px-5 py-8" style="background:var(--bg);">
+    <div class="max-w-xl w-full mx-auto flex flex-col gap-6" id="chatInner">
+      <div id="emptyState" class="mt-20">
+        <p class="mono text-xs mb-3" style="color:var(--text-faint);"><span class="empty-slash">//</span> sentience.exe — register-adaptive AI</p>
+        <p class="text-3xl font-semibold mb-2 tracking-tight" style="color:var(--text);">say something.</p>
+        <p class="text-sm leading-relaxed" style="color:var(--text-mute);">AI gives everyone the same answer.<br>this gives you an answer that sounds like it's for you.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="border-t px-5 py-3.5 shrink-0" style="border-color:var(--border);background:var(--surface);">
+    <div id="editBanner" class="hidden max-w-xl w-full mx-auto mb-2 px-3 py-1.5 rounded-md text-xs flex items-center justify-between mono" style="background:var(--surface-2);border:1px solid var(--border);color:var(--text-mute);">
+      <span>editing — send to replace everything after this</span>
+      <button id="cancelEditBtn" class="hover:underline ml-2" style="color:var(--periwinkle);">cancel</button>
+    </div>
+
+    <div id="sttBanner" class="hidden max-w-xl w-full mx-auto mb-2 px-3 py-1.5 rounded-md text-xs flex items-center gap-2 mono" style="background:var(--periwinkle-dim);border:1px solid var(--periwinkle-muted);color:var(--periwinkle);">
+      <span class="dot" style="background:var(--periwinkle);"></span>
+      <span>listening…</span>
+    </div>
+
+    <form id="chatForm" class="max-w-xl w-full mx-auto flex items-end gap-2">
+      <div class="relative shrink-0">
+        <div class="pulse-ring absolute inset-0 rounded-full" style="background:var(--periwinkle);opacity:0;"></div>
+        <button type="button" id="micBtn" class="relative w-8 h-8 rounded-full flex items-center justify-center" style="background:transparent;border:1px solid var(--border);color:var(--text-mute);" title="Voice input">
+          <svg id="micIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+
+      <textarea
+        id="messageInput"
+        rows="1"
+        placeholder="say anything…"
+        class="flex-1 resize-none rounded-lg px-3.5 py-2.5 text-sm leading-snug transition"
+        style="background:var(--input-bg);border:1px solid var(--border);color:var(--text);"
+      ></textarea>
+
+      <button type="submit" id="sendBtn" class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center disabled:cursor-not-allowed">
+        <svg id="sendIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+        <svg id="stopIcon" class="hidden" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+      </button>
+    </form>
+
+    <p id="errorMsg" class="hidden max-w-xl w-full mx-auto text-xs mt-2 mono" style="color:var(--blush);"></p>
+    <p class="max-w-xl w-full mx-auto text-[10px] mono mt-1.5" style="color:var(--text-faint);">enter to send · shift+enter newline · mic for voice</p>
+  </footer>
+</div>
 </div>
 
-<!-- Settings modal -->
-<div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-  <div class="w-full max-w-md rounded-xl p-5" style="background:var(--surface); border:1px solid var(--border);">
+<!-- ── SETTINGS MODAL ──────────────────────────────────────── -->
+<div id="settingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+  <div class="w-full max-w-sm rounded-xl p-5" style="background:var(--modal-bg);border:1px solid var(--border);">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-medium">Endpoint settings</h2>
-      <button id="settingsCloseBtn" class="text-lg leading-none" style="color:var(--text-mute);">&times;</button>
+      <h2 class="text-xs font-medium mono" style="color:var(--text);">endpoint settings</h2>
+      <button id="settingsCloseBtn" class="text-lg leading-none hover:opacity-60 transition" style="color:var(--text-mute);">&times;</button>
     </div>
-    <label class="block text-xs mb-1.5" style="color:var(--text-mute);">Backend endpoint (POST)</label>
-    <input id="endpointInput" type="text" class="w-full rounded-md px-3 py-2 text-xs mono mb-1"
-      style="background:var(--bg); border:1px solid var(--border); color:var(--text);"
-      placeholder="http://localhost:8000/chat/completions" />
-    <p class="text-[10.5px] mb-4" style="color:var(--text-faint);">Local dev default is <code class="mono">http://localhost:8000/chat/completions</code>. Swap in your deployed Render/Railway URL for the live demo.</p>
+    <label class="block text-xs mb-1.5 mono" style="color:var(--text-mute);">POST endpoint</label>
+    <input id="endpointInput" type="text" class="w-full rounded-md px-3 py-2 text-xs mono mb-1 focus:outline-none" style="background:var(--bg);border:1px solid var(--border);color:var(--text);" placeholder="http://localhost:8000/chat/completions"/>
+    <p class="text-[10px] mb-4 mono" style="color:var(--text-faint);">default: localhost:8000/chat/completions</p>
     <div class="flex gap-2 justify-end">
-      <button id="settingsResetBtn" class="px-3 py-1.5 rounded-md text-xs hover:brightness-110" style="color:var(--text-mute); border:1px solid var(--border);">Reset to default</button>
-      <button id="settingsSaveBtn" class="px-3 py-1.5 rounded-md text-xs font-medium" style="background:var(--accent); color:#0c0f0d;">Save</button>
+      <button id="settingsResetBtn" class="px-3 py-1.5 rounded-md text-xs mono transition" style="color:var(--text-mute);border:1px solid var(--border);">reset</button>
+      <button id="settingsSaveBtn" class="px-4 py-1.5 rounded-md text-xs font-medium mono" style="background:var(--periwinkle);color:#0d1510;">save</button>
     </div>
   </div>
 </div>
 
 <script>
-(function () {
-  "use strict";
+(function(){
+"use strict";
 
-  // ---------------------------------------------------------------------
-  // Config
-  // ---------------------------------------------------------------------
-  const DEFAULT_ENDPOINT = "http://localhost:8000/chat/completions";
-  const LS_ENDPOINT_KEY = "sentience_endpoint";
-  const LS_CONVOS_KEY = "sentience_conversations";
-  const LS_ACTIVE_KEY = "sentience_active_convo";
-  const TYPE_REVEAL_MS = 14; // ms per character during simulated streaming reveal
+const DEFAULT_ENDPOINT = "http://localhost:8000/chat/completions";
+const LS_ENDPOINT      = "sentience_endpoint";
+const LS_CONVOS        = "sentience_conversations";
+const LS_ACTIVE        = "sentience_active_convo";
+const LS_THEME         = "sentience_theme";
+const TYPE_MS          = 13;
 
-  marked.setOptions({ breaks: true, gfm: true });
+marked.setOptions({ breaks: true, gfm: true });
 
-  // ---------------------------------------------------------------------
-  // Storage helpers
-  // ---------------------------------------------------------------------
-  function getEndpoint() { return localStorage.getItem(LS_ENDPOINT_KEY) || DEFAULT_ENDPOINT; }
-  function setEndpointStorage(url) { localStorage.setItem(LS_ENDPOINT_KEY, url); }
+const savedTheme = localStorage.getItem(LS_THEME) || "dark";
+document.documentElement.setAttribute("data-theme", savedTheme);
+const themeToggle = document.getElementById("themeToggle");
+const themeLabel  = document.getElementById("themeLabel");
+const themeIcon   = document.getElementById("themeIcon");
 
-  function loadConvos() {
-    try {
-      const raw = localStorage.getItem(LS_CONVOS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  }
-  function saveConvos() { localStorage.setItem(LS_CONVOS_KEY, JSON.stringify(state.convos)); }
-  function saveActiveId() { localStorage.setItem(LS_ACTIVE_KEY, state.activeId || ""); }
+function updateThemeBtn(){
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  themeLabel.textContent = isDark ? "light mode" : "dark mode";
+  themeIcon.innerHTML = isDark
+    ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+}
+updateThemeBtn();
+themeToggle.addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem(LS_THEME, next);
+  updateThemeBtn();
+});
 
-  function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+function getEndpoint(){ return localStorage.getItem(LS_ENDPOINT) || DEFAULT_ENDPOINT; }
+function setEndpointStorage(u){ localStorage.setItem(LS_ENDPOINT, u); }
+function loadConvos(){ try{ const r=localStorage.getItem(LS_CONVOS); return r?JSON.parse(r):[]; }catch{ return []; } }
+function saveConvos(){ localStorage.setItem(LS_CONVOS, JSON.stringify(state.convos)); }
+function saveActiveId(){ localStorage.setItem(LS_ACTIVE, state.activeId||""); }
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 
-  // ---------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------
-  const state = {
-    convos: loadConvos(),        // [{ id, title, messages:[{role,content,ts}], createdAt }]
-    activeId: localStorage.getItem(LS_ACTIVE_KEY) || null,
-    editingIndex: null,          // index of user message currently being edited, or null
-    inFlight: false,
-    revealCancel: false,
-  };
+const state = {
+  convos: loadConvos(),
+  activeId: localStorage.getItem(LS_ACTIVE)||null,
+  editingIndex: null,
+  inFlight: false,
+  revealCancel: false,
+  recognizing: false,
+};
+if(!state.convos.length){ createConversation(); }
+else if(!state.convos.find(c=>c.id===state.activeId)){ state.activeId=state.convos[0].id; }
+function activeConvo(){ return state.convos.find(c=>c.id===state.activeId); }
+function createConversation(){
+  const c={id:uid(),title:"New chat",messages:[],createdAt:Date.now()};
+  state.convos.unshift(c); state.activeId=c.id;
+  saveConvos(); saveActiveId(); return c;
+}
 
-  if (!state.convos.length) {
-    createConversation();
-  } else if (!state.convos.find(c => c.id === state.activeId)) {
-    state.activeId = state.convos[0].id;
-  }
+const $=id=>document.getElementById(id);
+const sidebar=$("sidebar"),sidebarScrim=$("sidebarScrim"),sidebarToggle=$("sidebarToggle");
+const convoList=$("convoList"),newChatBtn=$("newChatBtn");
+const chatInner=$("chatInner"),chatArea=$("chatArea");
+const chatForm=$("chatForm"),messageInput=$("messageInput");
+const sendBtn=$("sendBtn"),sendIcon=$("sendIcon"),stopIcon=$("stopIcon");
+const errorMsg=$("errorMsg");
+const convoTitleEl=$("convoTitle"),statusLine=$("statusLine"),statusDot=$("statusDot"),endpointLabel=$("endpointLabel");
+const editBanner=$("editBanner"),cancelEditBtn=$("cancelEditBtn");
+const exportBtn=$("exportBtn");
+const settingsOpenBtn=$("settingsOpenBtn"),settingsModal=$("settingsModal"),settingsCloseBtn=$("settingsCloseBtn");
+const settingsSaveBtn=$("settingsSaveBtn"),settingsResetBtn=$("settingsResetBtn"),endpointInput=$("endpointInput");
+const micBtn=$("micBtn"),sttBanner=$("sttBanner");
 
-  function activeConvo() { return state.convos.find(c => c.id === state.activeId); }
-
-  function createConversation() {
-    const convo = { id: uid(), title: "New chat", messages: [], createdAt: Date.now() };
-    state.convos.unshift(convo);
-    state.activeId = convo.id;
-    saveConvos(); saveActiveId();
-    return convo;
-  }
-
-  // ---------------------------------------------------------------------
-  // DOM refs
-  // ---------------------------------------------------------------------
-  const $ = (id) => document.getElementById(id);
-  const sidebar = $("sidebar"), sidebarScrim = $("sidebarScrim"), sidebarToggle = $("sidebarToggle");
-  const convoList = $("convoList"), newChatBtn = $("newChatBtn");
-  const chatInner = $("chatInner"), chatArea = $("chatArea");
-  const chatForm = $("chatForm"), messageInput = $("messageInput");
-  const sendBtn = $("sendBtn"), sendIcon = $("sendIcon"), stopIcon = $("stopIcon");
-  const errorMsg = $("errorMsg");
-  const convoTitleEl = $("convoTitle"), statusLine = $("statusLine"), statusDot = $("statusDot"), endpointLabel = $("endpointLabel");
-  const editBanner = $("editBanner"), cancelEditBtn = $("cancelEditBtn");
-  const exportBtn = $("exportBtn");
-  const settingsOpenBtn = $("settingsOpenBtn"), settingsModal = $("settingsModal"), settingsCloseBtn = $("settingsCloseBtn");
-  const settingsSaveBtn = $("settingsSaveBtn"), settingsResetBtn = $("settingsResetBtn"), endpointInput = $("endpointInput");
-
-  // ---------------------------------------------------------------------
-  // Sidebar rendering
-  // ---------------------------------------------------------------------
-  function renderSidebar() {
-    convoList.innerHTML = "";
-    state.convos.forEach((c) => {
-      const item = document.createElement("div");
-      item.className = "sidebar-item group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer border border-transparent text-sm" +
-        (c.id === state.activeId ? " active" : "");
-      item.style.color = c.id === state.activeId ? "var(--text)" : "var(--text-mute)";
-
-      const label = document.createElement("span");
-      label.className = "truncate flex-1";
-      label.textContent = c.title || "New chat";
-
-      const del = document.createElement("button");
-      del.className = "opacity-0 group-hover:opacity-100 transition text-xs hover:text-red-400";
-      del.style.color = "var(--text-faint)";
-      del.innerHTML = "&times;";
-      del.title = "Delete conversation";
-      del.addEventListener("click", (e) => {
-        e.stopPropagation();
-        deleteConversation(c.id);
-      });
-
-      item.appendChild(label);
-      item.appendChild(del);
-      item.addEventListener("click", () => switchConversation(c.id));
-      convoList.appendChild(item);
-    });
-  }
-
-  function switchConversation(id) {
-    state.activeId = id;
-    state.editingIndex = null;
-    hideEditBanner();
-    saveActiveId();
-    renderSidebar();
-    renderChat();
-    closeSidebarMobile();
-  }
-
-  function deleteConversation(id) {
-    const idx = state.convos.findIndex(c => c.id === id);
-    if (idx === -1) return;
-    state.convos.splice(idx, 1);
-    if (!state.convos.length) createConversation();
-    else if (state.activeId === id) state.activeId = state.convos[0].id;
-    saveConvos(); saveActiveId();
-    renderSidebar(); renderChat();
-  }
-
-  newChatBtn.addEventListener("click", () => {
-    createConversation();
-    renderSidebar(); renderChat();
-    closeSidebarMobile();
-    messageInput.focus();
+function renderSidebar(){
+  convoList.innerHTML="";
+  state.convos.forEach(c=>{
+    const item=document.createElement("div");
+    item.className="sidebar-item group flex items-center gap-2 px-3 py-2 cursor-pointer text-xs mono"+(c.id===state.activeId?" active":"");
+    item.style.color=c.id===state.activeId?"var(--text)":"var(--text-mute)";
+    const label=document.createElement("span");
+    label.className="truncate flex-1";
+    label.textContent=c.title||"new chat";
+    const del=document.createElement("button");
+    del.className="opacity-0 group-hover:opacity-100 transition text-xs hover:opacity-60 shrink-0";
+    del.style.color="var(--text-faint)";
+    del.innerHTML="&times;";
+    del.addEventListener("click",e=>{e.stopPropagation();deleteConversation(c.id);});
+    item.appendChild(label); item.appendChild(del);
+    item.addEventListener("click",()=>switchConversation(c.id));
+    convoList.appendChild(item);
   });
+}
+function switchConversation(id){
+  state.activeId=id; state.editingIndex=null; hideEditBanner();
+  saveActiveId(); renderSidebar(); renderChat(); closeSidebarMobile();
+}
+function deleteConversation(id){
+  const idx=state.convos.findIndex(c=>c.id===id);
+  if(idx===-1)return;
+  state.convos.splice(idx,1);
+  if(!state.convos.length)createConversation();
+  else if(state.activeId===id)state.activeId=state.convos[0].id;
+  saveConvos(); saveActiveId(); renderSidebar(); renderChat();
+}
+newChatBtn.addEventListener("click",()=>{ createConversation(); renderSidebar(); renderChat(); closeSidebarMobile(); messageInput.focus(); });
+function openSidebarMobile(){sidebar.classList.add("open");sidebarScrim.classList.add("open");}
+function closeSidebarMobile(){sidebar.classList.remove("open");sidebarScrim.classList.remove("open");}
+sidebarToggle.addEventListener("click",()=>sidebar.classList.contains("open")?closeSidebarMobile():openSidebarMobile());
+sidebarScrim.addEventListener("click",closeSidebarMobile);
 
-  // Mobile sidebar toggle
-  function openSidebarMobile() { sidebar.classList.add("open"); sidebarScrim.classList.add("open"); }
-  function closeSidebarMobile() { sidebar.classList.remove("open"); sidebarScrim.classList.remove("open"); }
-  sidebarToggle.addEventListener("click", () => {
-    sidebar.classList.contains("open") ? closeSidebarMobile() : openSidebarMobile();
-  });
-  sidebarScrim.addEventListener("click", closeSidebarMobile);
+function mdToSafeHtml(text){ return DOMPurify.sanitize(marked.parse(text)); }
+function formatTime(ts){ if(!ts)return""; return new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}); }
 
-  // ---------------------------------------------------------------------
-  // Chat rendering
-  // ---------------------------------------------------------------------
-  function mdToSafeHtml(text) {
-    const raw = marked.parse(text);
-    return DOMPurify.sanitize(raw);
-  }
-
-  function formatTime(ts) {
-    if (!ts) return "";
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function renderChat() {
-    const convo = activeConvo();
-    chatInner.innerHTML = "";
-    convoTitleEl.textContent = convo.title || "sentience.exe";
-    updateEndpointLabel();
-
-    if (!convo.messages.length) {
-      const empty = document.createElement("div");
-      empty.id = "emptyState";
-      empty.className = "text-center mt-16";
-      empty.innerHTML = `<p class="mono text-xs" style="color:var(--text-faint);">no active session</p>
-                          <p class="text-sm mt-1" style="color:var(--text-mute);">send a message to begin</p>`;
-      chatInner.appendChild(empty);
-      return;
-    }
-
-    convo.messages.forEach((msg, idx) => {
-      appendMessageGroup(msg.role, msg.content, msg.ts, idx);
-    });
-    scrollToBottom(true);
-  }
-
-  // Builds a message group (possibly multiple bubbles split on \n) and appends it.
-  function appendMessageGroup(role, content, ts, msgIndex) {
-    document.getElementById("emptyState")?.remove();
-    const isUser = role === "user";
-    const fragments = content.split("\n").filter((f) => f.trim().length > 0);
-
-    const row = document.createElement("div");
-    row.className = `msg-row flex flex-col gap-1 ${isUser ? "items-end" : "items-start"}`;
-    row.dataset.index = msgIndex;
-
-    const bubbleWrap = document.createElement("div");
-    bubbleWrap.className = "flex flex-col gap-1 max-w-[80%]";
-
-    fragments.forEach((frag) => {
-      const bubble = document.createElement("div");
-      bubble.className = "bubble-in px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words";
-      if (isUser) {
-        bubble.style.background = "var(--accent)";
-        bubble.style.color = "#0c0f0d";
-        bubble.classList.add("rounded-br-md");
-        bubble.textContent = frag;
-      } else {
-        bubble.style.background = "var(--surface-2)";
-        bubble.style.color = "var(--text)";
-        bubble.style.border = "1px solid var(--border)";
-        bubble.classList.add("rounded-bl-md", "prose-bot");
-        bubble.innerHTML = mdToSafeHtml(frag);
-      }
-      bubbleWrap.appendChild(bubble);
-    });
-
-    row.appendChild(bubbleWrap);
-
-    // meta row: timestamp + actions
-    const meta = document.createElement("div");
-    meta.className = `msg-actions flex items-center gap-2 px-1 ${isUser ? "flex-row-reverse" : ""}`;
-    meta.innerHTML = `<span class="mono text-[10px]" style="color:var(--text-faint);">${formatTime(ts)}</span>`;
-
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "text-[10px] mono hover:underline";
-    copyBtn.style.color = "var(--text-faint)";
-    copyBtn.textContent = "copy";
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard?.writeText(content);
-      copyBtn.textContent = "copied";
-      setTimeout(() => (copyBtn.textContent = "copy"), 1200);
-    });
-    meta.appendChild(copyBtn);
-
-    if (isUser) {
-      const editBtn = document.createElement("button");
-      editBtn.className = "text-[10px] mono hover:underline";
-      editBtn.style.color = "var(--text-faint)";
-      editBtn.textContent = "edit";
-      editBtn.addEventListener("click", () => startEdit(msgIndex));
-      meta.appendChild(editBtn);
-    } else {
-      const convoNow = activeConvo();
-      let lastAssistantIdx = -1;
-      for (let i = convoNow.messages.length - 1; i >= 0; i--) {
-        if (convoNow.messages[i].role === "assistant") { lastAssistantIdx = i; break; }
-      }
-      if (lastAssistantIdx === msgIndex) {
-        const regenBtn = document.createElement("button");
-        regenBtn.className = "text-[10px] mono hover:underline";
-        regenBtn.style.color = "var(--text-faint)";
-        regenBtn.textContent = "regenerate";
-        regenBtn.addEventListener("click", regenerateLast);
-        meta.appendChild(regenBtn);
-      }
-    }
-
-    row.appendChild(meta);
-    chatInner.appendChild(row);
-    return row;
-  }
-
-  function scrollToBottom(force = false) {
-    const nearBottom = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 120;
-    if (force || nearBottom) chatArea.scrollTop = chatArea.scrollHeight;
-  }
-
-  // ---------------------------------------------------------------------
-  // Typing indicator
-  // ---------------------------------------------------------------------
-  function showTypingIndicator() {
-    const wrap = document.createElement("div");
-    wrap.id = "typingIndicator";
-    wrap.className = "flex items-start bubble-in";
-    wrap.innerHTML = `<div class="rounded-2xl rounded-bl-md px-4 py-3 flex gap-1 items-center" style="background:var(--surface-2); border:1px solid var(--border);">
-        <span class="dot w-1.5 h-1.5 rounded-full" style="background:var(--text-mute);"></span>
-        <span class="dot w-1.5 h-1.5 rounded-full" style="background:var(--text-mute);"></span>
-        <span class="dot w-1.5 h-1.5 rounded-full" style="background:var(--text-mute);"></span>
-      </div>`;
-    chatInner.appendChild(wrap);
-    scrollToBottom(true);
-  }
-  function removeTypingIndicator() { document.getElementById("typingIndicator")?.remove(); }
-
-  // ---------------------------------------------------------------------
-  // Status / endpoint label
-  // ---------------------------------------------------------------------
-  function updateEndpointLabel() {
-    try {
-      const u = new URL(getEndpoint());
-      endpointLabel.textContent = u.host;
-    } catch {
-      endpointLabel.textContent = getEndpoint();
-    }
-  }
-  function setStatus(text, color) {
-    statusLine.innerHTML = `status: ${text} · <span id="endpointLabel">${endpointLabel.textContent}</span>`;
-    statusDot.style.background = color || "var(--accent)";
-  }
-
-  // ---------------------------------------------------------------------
-  // Error handling
-  // ---------------------------------------------------------------------
-  function showError(text) { errorMsg.textContent = text; errorMsg.classList.remove("hidden"); }
-  function hideError() { errorMsg.classList.add("hidden"); }
-
-  // ---------------------------------------------------------------------
-  // Networking
-  // ---------------------------------------------------------------------
-  async function sendToBackend(allMessages) {
-    const payloadMessages = allMessages.map(({ role, content }) => ({ role, content }));
-    const res = await fetch(getEndpoint(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "sentience", messages: payloadMessages }),
-    });
-    if (!res.ok) throw new Error(`Server responded ${res.status}: ${res.statusText}`);
-    const data = await res.json();
-    const reply = data?.choices?.[0]?.message?.content;
-    if (typeof reply !== "string") throw new Error("Unexpected response shape from server.");
-    return reply;
-  }
-
-  // ---------------------------------------------------------------------
-  // Simulated streaming reveal for the bot reply
-  // ---------------------------------------------------------------------
-  async function revealReply(content, msgIndex) {
-    const fragments = content.split("\n").filter((f) => f.trim().length > 0);
-    document.getElementById("emptyState")?.remove();
-
-    const row = document.createElement("div");
-    row.className = "msg-row flex flex-col gap-1 items-start";
-    row.dataset.index = msgIndex;
-    const bubbleWrap = document.createElement("div");
-    bubbleWrap.className = "flex flex-col gap-1 max-w-[80%]";
-    row.appendChild(bubbleWrap);
-    chatInner.appendChild(row);
-
-    for (const frag of fragments) {
-      if (state.revealCancel) break;
-      const bubble = document.createElement("div");
-      bubble.className = "bubble-in px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words rounded-bl-md prose-bot";
-      bubble.style.background = "var(--surface-2)";
-      bubble.style.color = "var(--text)";
-      bubble.style.border = "1px solid var(--border)";
-      bubbleWrap.appendChild(bubble);
-
-      let shown = "";
-      for (const ch of frag) {
-        if (state.revealCancel) { shown = frag; break; }
-        shown += ch;
-        bubble.textContent = shown;
-        scrollToBottom();
-        await new Promise((r) => setTimeout(r, TYPE_REVEAL_MS));
-      }
-      bubble.innerHTML = mdToSafeHtml(shown);
-      scrollToBottom();
-    }
-
-    if (state.revealCancel) {
-      // Ensure every fragment is fully rendered if the user skipped ahead
-      bubbleWrap.innerHTML = "";
-      fragments.forEach((frag) => {
-        const b = document.createElement("div");
-        b.className = "px-3.5 py-2 rounded-2xl text-sm leading-relaxed break-words rounded-bl-md prose-bot";
-        b.style.background = "var(--surface-2)";
-        b.style.color = "var(--text)";
-        b.style.border = "1px solid var(--border)";
-        b.innerHTML = mdToSafeHtml(frag);
-        bubbleWrap.appendChild(b);
-      });
-    }
-
-    // meta row
-    const meta = document.createElement("div");
-    meta.className = "msg-actions flex items-center gap-2 px-1";
-    meta.innerHTML = `<span class="mono text-[10px]" style="color:var(--text-faint);">${formatTime(Date.now())}</span>`;
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "text-[10px] mono hover:underline";
-    copyBtn.style.color = "var(--text-faint)";
-    copyBtn.textContent = "copy";
-    copyBtn.addEventListener("click", () => {
-      navigator.clipboard?.writeText(content);
-      copyBtn.textContent = "copied";
-      setTimeout(() => (copyBtn.textContent = "copy"), 1200);
-    });
-    meta.appendChild(copyBtn);
-    const regenBtn = document.createElement("button");
-    regenBtn.className = "text-[10px] mono hover:underline";
-    regenBtn.style.color = "var(--text-faint)";
-    regenBtn.textContent = "regenerate";
-    regenBtn.addEventListener("click", regenerateLast);
-    meta.appendChild(regenBtn);
-    row.appendChild(meta);
-
-    state.revealCancel = false;
-  }
-
-  // ---------------------------------------------------------------------
-  // Send flow
-  // ---------------------------------------------------------------------
-  function setInFlight(v) {
-    state.inFlight = v;
-    sendIcon.classList.toggle("hidden", v);
-    stopIcon.classList.toggle("hidden", !v);
-    sendBtn.disabled = false; // stays clickable to act as stop
-  }
-
-  function maybeSetTitle(convo, firstUserText) {
-    if (convo.title === "New chat") {
-      convo.title = firstUserText.slice(0, 42) + (firstUserText.length > 42 ? "…" : "");
-    }
-  }
-
-  async function runExchange(convo) {
-    hideError();
-    setInFlight(true);
-    setStatus("thinking", "var(--amber)");
-    showTypingIndicator();
-
-    try {
-      const reply = await sendToBackend(convo.messages);
-      removeTypingIndicator();
-
-      const replyMsg = { role: "assistant", content: reply, ts: Date.now() };
-      convo.messages.push(replyMsg);
-      saveConvos();
-
-      await revealReply(reply, convo.messages.length - 1);
-      setStatus("idle", "var(--accent)");
-    } catch (err) {
-      removeTypingIndicator();
-      showError(`Couldn't reach the backend (${err.message}). Check the endpoint in settings and that the server is running.`);
-      setStatus("error", "#e8746b");
-      // Roll back the optimistic user message so a retry doesn't duplicate context
-      convo.messages.pop();
-      saveConvos();
-      renderChat();
-    } finally {
-      setInFlight(false);
-      messageInput.focus();
-    }
-  }
-
-  chatForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (state.inFlight) {
-      // Acting as "stop" button — skip the typing reveal straight to full text
-      state.revealCancel = true;
-      return;
-    }
-
-    const text = messageInput.value.trim();
-    if (!text) return;
-
-    const convo = activeConvo();
-
-    if (state.editingIndex !== null) {
-      // Replace everything from the edited message onward
-      convo.messages = convo.messages.slice(0, state.editingIndex);
-      const userMsg = { role: "user", content: text, ts: Date.now() };
-      convo.messages.push(userMsg);
-      maybeSetTitle(convo, text);
-      state.editingIndex = null;
-      hideEditBanner();
-      saveConvos();
-      renderSidebar();
-      renderChat();
-    } else {
-      const userMsg = { role: "user", content: text, ts: Date.now() };
-      convo.messages.push(userMsg);
-      maybeSetTitle(convo, text);
-      saveConvos();
-      renderSidebar();
-      appendMessageGroup("user", text, userMsg.ts, convo.messages.length - 1);
-      scrollToBottom(true);
-    }
-
-    messageInput.value = "";
-    messageInput.style.height = "auto";
-
-    await runExchange(convo);
-  });
-
-  function regenerateLast() {
-    if (state.inFlight) return;
-    const convo = activeConvo();
-    // Remove trailing assistant message(s) up to and including the last one
-    while (convo.messages.length && convo.messages[convo.messages.length - 1].role === "assistant") {
-      convo.messages.pop();
-    }
-    saveConvos();
-    renderChat();
-    runExchange(convo);
-  }
-
-  function startEdit(msgIndex) {
-    const convo = activeConvo();
-    const msg = convo.messages[msgIndex];
-    if (!msg || msg.role !== "user") return;
-    state.editingIndex = msgIndex;
-    messageInput.value = msg.content;
-    messageInput.style.height = "auto";
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 160) + "px";
-    editBanner.classList.remove("hidden");
-    messageInput.focus();
-  }
-  function hideEditBanner() { editBanner.classList.add("hidden"); }
-  cancelEditBtn.addEventListener("click", () => {
-    state.editingIndex = null;
-    messageInput.value = "";
-    hideEditBanner();
-  });
-
-  // ---------------------------------------------------------------------
-  // Textarea behavior
-  // ---------------------------------------------------------------------
-  messageInput.addEventListener("input", () => {
-    messageInput.style.height = "auto";
-    messageInput.style.height = Math.min(messageInput.scrollHeight, 160) + "px";
-  });
-  messageInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      chatForm.requestSubmit();
-    }
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-      e.preventDefault();
-      createConversation();
-      renderSidebar(); renderChat();
-      messageInput.focus();
-    }
-    if (e.key === "Escape") closeSettings();
-  });
-
-  // ---------------------------------------------------------------------
-  // Export
-  // ---------------------------------------------------------------------
-  exportBtn.addEventListener("click", () => {
-    const convo = activeConvo();
-    const payload = {
-      model: "sentience",
-      title: convo.title,
-      messages: convo.messages.map(({ role, content }) => ({ role, content })),
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${(convo.title || "conversation").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // ---------------------------------------------------------------------
-  // Settings modal
-  // ---------------------------------------------------------------------
-  function openSettings() {
-    endpointInput.value = getEndpoint();
-    settingsModal.classList.remove("hidden");
-  }
-  function closeSettings() { settingsModal.classList.add("hidden"); }
-  settingsOpenBtn.addEventListener("click", openSettings);
-  settingsCloseBtn.addEventListener("click", closeSettings);
-  settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettings(); });
-  settingsSaveBtn.addEventListener("click", () => {
-    const val = endpointInput.value.trim();
-    if (val) { setEndpointStorage(val); updateEndpointLabel(); setStatus("idle", "var(--accent)"); }
-    closeSettings();
-  });
-  settingsResetBtn.addEventListener("click", () => {
-    setEndpointStorage(DEFAULT_ENDPOINT);
-    endpointInput.value = DEFAULT_ENDPOINT;
-    updateEndpointLabel();
-  });
-
-  // ---------------------------------------------------------------------
-  // Init
-  // ---------------------------------------------------------------------
-  renderSidebar();
-  renderChat();
+function renderChat(){
+  const convo=activeConvo();
+  chatInner.innerHTML="";
+  convoTitleEl.textContent=convo.title||"sentience.exe";
   updateEndpointLabel();
-  setStatus("idle", "var(--accent)");
-  messageInput.focus();
+  if(!convo.messages.length){
+    chatInner.innerHTML=`<div id="emptyState" class="mt-20">
+      <p class="mono text-xs mb-3" style="color:var(--text-faint);"><span style="color:var(--periwinkle);opacity:.6;">//</span> sentience.exe — register-adaptive AI</p>
+      <p class="text-3xl font-semibold mb-2 tracking-tight" style="color:var(--text);">say something.</p>
+      <p class="text-sm leading-relaxed" style="color:var(--text-mute);">AI gives everyone the same answer.<br>this gives you an answer that sounds like it's for you.</p>
+    </div>`;
+    return;
+  }
+  convo.messages.forEach((msg,idx)=>appendMessageGroup(msg.role,msg.content,msg.ts,idx));
+  scrollToBottom(true);
+}
+
+function appendMessageGroup(role,content,ts,msgIndex){
+  document.getElementById("emptyState")?.remove();
+  const isUser=role==="user";
+  const row=document.createElement("div");
+  row.className=`msg-row flex flex-col gap-1 ${isUser?"items-end":"items-start"}`;
+  row.dataset.index=msgIndex;
+
+  if(isUser){
+    const fragments=content.split("\n").filter(f=>f.trim().length>0);
+    const bubbleWrap=document.createElement("div");
+    bubbleWrap.className="flex flex-col gap-1 max-w-[80%]";
+    fragments.forEach(frag=>{
+      const bubble=document.createElement("div");
+      bubble.className="bubble-in user-bubble";
+      bubble.textContent=frag;
+      bubbleWrap.appendChild(bubble);
+    });
+    row.appendChild(bubbleWrap);
+  } else {
+    const frags=content.split("\n").filter(f=>f.trim().length>0);
+    frags.forEach(frag=>{
+      const wrap=document.createElement("div");
+      wrap.className="bubble-in bot-bubble prose-bot max-w-[80%]";
+      wrap.innerHTML=mdToSafeHtml(frag);
+      row.appendChild(wrap);
+    });
+  }
+
+  const meta=document.createElement("div");
+  meta.className=`msg-actions flex items-center gap-2 px-1 mt-0.5 ${isUser?"flex-row-reverse":""}`;
+  meta.innerHTML=`<span class="mono text-[10px]" style="color:var(--text-faint);">${formatTime(ts)}</span>`;
+  const copyBtn=document.createElement("button");
+  copyBtn.className="text-[10px] mono hover:underline"; copyBtn.style.color="var(--text-faint)"; copyBtn.textContent="copy";
+  copyBtn.addEventListener("click",()=>{ navigator.clipboard?.writeText(content); copyBtn.textContent="copied"; setTimeout(()=>copyBtn.textContent="copy",1200); });
+  meta.appendChild(copyBtn);
+  if(isUser){
+    const editBtn=document.createElement("button");
+    editBtn.className="text-[10px] mono hover:underline"; editBtn.style.color="var(--text-faint)"; editBtn.textContent="edit";
+    editBtn.addEventListener("click",()=>startEdit(msgIndex));
+    meta.appendChild(editBtn);
+  } else {
+    const convoNow=activeConvo();
+    let lastAiIdx=-1;
+    for(let i=convoNow.messages.length-1;i>=0;i--){ if(convoNow.messages[i].role==="assistant"){lastAiIdx=i;break;} }
+    if(lastAiIdx===msgIndex){
+      const regenBtn=document.createElement("button");
+      regenBtn.className="text-[10px] mono hover:underline"; regenBtn.style.color="var(--text-faint)"; regenBtn.textContent="regen";
+      regenBtn.addEventListener("click",regenerateLast);
+      meta.appendChild(regenBtn);
+    }
+  }
+  row.appendChild(meta);
+  chatInner.appendChild(row);
+  return row;
+}
+
+function scrollToBottom(force=false){
+  const near=chatArea.scrollHeight-chatArea.scrollTop-chatArea.clientHeight<120;
+  if(force||near) chatArea.scrollTop=chatArea.scrollHeight;
+}
+
+function showTypingIndicator(){
+  const w=document.createElement("div");
+  w.id="typingIndicator"; w.className="flex items-start bubble-in";
+  w.innerHTML=`<div class="bot-bubble flex gap-1.5 items-center" style="padding:11px 16px;">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+  </div>`;
+  chatInner.appendChild(w); scrollToBottom(true);
+}
+function removeTypingIndicator(){ $("typingIndicator")?.remove(); }
+
+function updateEndpointLabel(){
+  try{ const u=new URL(getEndpoint()); endpointLabel.textContent=u.host; }catch{ endpointLabel.textContent=getEndpoint(); }
+}
+function setStatus(text,color){
+  statusLine.innerHTML=`${text} · <span id="endpointLabel">${endpointLabel.textContent}</span>`;
+  if(color) statusDot.style.background=color;
+}
+
+function showError(t){ errorMsg.textContent=t; errorMsg.classList.remove("hidden"); }
+function hideError(){ errorMsg.classList.add("hidden"); }
+
+async function sendToBackend(msgs){
+  const payload=msgs.map(({role,content})=>({role,content}));
+  const res=await fetch(getEndpoint(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"sentience",messages:payload})});
+  if(!res.ok) throw new Error(`Server ${res.status}: ${res.statusText}`);
+  const data=await res.json();
+  const reply=data?.choices?.[0]?.message?.content;
+  if(typeof reply!=="string") throw new Error("Unexpected response shape.");
+  return reply;
+}
+
+async function revealReply(content,msgIndex){
+  document.getElementById("emptyState")?.remove();
+  const row=document.createElement("div");
+  row.className="msg-row flex flex-col gap-1 items-start"; row.dataset.index=msgIndex;
+  chatInner.appendChild(row);
+  const frags=content.split("\n").filter(f=>f.trim().length>0);
+  for(const frag of frags){
+    if(state.revealCancel) break;
+    const wrap=document.createElement("div");
+    wrap.className="bubble-in bot-bubble prose-bot max-w-[80%]";
+    row.appendChild(wrap);
+    scrollToBottom();
+    let shown="";
+    for(const ch of frag){
+      if(state.revealCancel){shown=frag;break;}
+      shown+=ch;
+      wrap.textContent=shown;
+      scrollToBottom();
+      await new Promise(r=>setTimeout(r,TYPE_MS));
+    }
+    wrap.innerHTML=mdToSafeHtml(shown);
+    scrollToBottom();
+    if(!state.revealCancel) await new Promise(r=>setTimeout(r,120));
+  }
+  if(state.revealCancel){
+    row.querySelectorAll(".bot-bubble").forEach(b=>b.remove());
+    const frags2=content.split("\n").filter(f=>f.trim().length>0);
+    frags2.forEach(frag=>{
+      const wrap=document.createElement("div");
+      wrap.className="bot-bubble prose-bot max-w-[80%]";
+      wrap.innerHTML=mdToSafeHtml(frag);
+      row.appendChild(wrap);
+    });
+  }
+
+  const meta=document.createElement("div"); meta.className="msg-actions flex items-center gap-2 px-1 mt-0.5";
+  meta.innerHTML=`<span class="mono text-[10px]" style="color:var(--text-faint);">${formatTime(Date.now())}</span>`;
+  const copyBtn=document.createElement("button"); copyBtn.className="text-[10px] mono hover:underline"; copyBtn.style.color="var(--text-faint)"; copyBtn.textContent="copy";
+  copyBtn.addEventListener("click",()=>{ navigator.clipboard?.writeText(content); copyBtn.textContent="copied"; setTimeout(()=>copyBtn.textContent="copy",1200); });
+  const regenBtn=document.createElement("button"); regenBtn.className="text-[10px] mono hover:underline"; regenBtn.style.color="var(--text-faint)"; regenBtn.textContent="regen";
+  regenBtn.addEventListener("click",regenerateLast);
+  meta.appendChild(copyBtn); meta.appendChild(regenBtn); row.appendChild(meta);
+  state.revealCancel=false;
+}
+
+function setInFlight(v){
+  state.inFlight=v;
+  sendIcon.classList.toggle("hidden",v); stopIcon.classList.toggle("hidden",!v);
+  sendBtn.disabled=false;
+}
+function maybeSetTitle(convo,text){ if(convo.title==="New chat") convo.title=text.slice(0,42)+(text.length>42?"…":""); }
+
+async function runExchange(convo){
+  hideError(); setInFlight(true); setStatus("thinking…","var(--sage)"); showTypingIndicator();
+  try{
+    const reply=await sendToBackend(convo.messages);
+    removeTypingIndicator();
+    const replyMsg={role:"assistant",content:reply,ts:Date.now()};
+    convo.messages.push(replyMsg); saveConvos();
+    await revealReply(reply,convo.messages.length-1);
+    setStatus("idle","var(--periwinkle)");
+  } catch(err){
+    removeTypingIndicator();
+    showError(`couldn't reach backend (${err.message}). check endpoint settings.`);
+    setStatus("error","var(--blush)");
+    convo.messages.pop(); saveConvos(); renderChat();
+  } finally{ setInFlight(false); messageInput.focus(); }
+}
+
+chatForm.addEventListener("submit",async e=>{
+  e.preventDefault();
+  if(state.inFlight){ state.revealCancel=true; return; }
+  const text=messageInput.value.trim();
+  if(!text)return;
+  const convo=activeConvo();
+  if(state.editingIndex!==null){
+    convo.messages=convo.messages.slice(0,state.editingIndex);
+    convo.messages.push({role:"user",content:text,ts:Date.now()});
+    maybeSetTitle(convo,text); state.editingIndex=null; hideEditBanner();
+    saveConvos(); renderSidebar(); renderChat();
+  } else {
+    const userMsg={role:"user",content:text,ts:Date.now()};
+    convo.messages.push(userMsg); maybeSetTitle(convo,text);
+    saveConvos(); renderSidebar();
+    appendMessageGroup("user",text,userMsg.ts,convo.messages.length-1);
+    scrollToBottom(true);
+  }
+  messageInput.value=""; messageInput.style.height="auto";
+  await runExchange(convo);
+});
+
+function regenerateLast(){
+  if(state.inFlight)return;
+  const convo=activeConvo();
+  while(convo.messages.length&&convo.messages[convo.messages.length-1].role==="assistant") convo.messages.pop();
+  saveConvos(); renderChat(); runExchange(convo);
+}
+function startEdit(idx){
+  const msg=activeConvo().messages[idx];
+  if(!msg||msg.role!=="user")return;
+  state.editingIndex=idx; messageInput.value=msg.content;
+  messageInput.style.height="auto"; messageInput.style.height=Math.min(messageInput.scrollHeight,160)+"px";
+  editBanner.classList.remove("hidden"); messageInput.focus();
+}
+function hideEditBanner(){ editBanner.classList.add("hidden"); }
+cancelEditBtn.addEventListener("click",()=>{ state.editingIndex=null; messageInput.value=""; hideEditBanner(); });
+
+messageInput.addEventListener("input",()=>{ messageInput.style.height="auto"; messageInput.style.height=Math.min(messageInput.scrollHeight,160)+"px"; });
+messageInput.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();chatForm.requestSubmit();} });
+document.addEventListener("keydown",e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){ e.preventDefault(); createConversation(); renderSidebar(); renderChat(); messageInput.focus(); }
+  if(e.key==="Escape") closeSettings();
+});
+
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null;
+if(SpeechRecognition){
+  recognition=new SpeechRecognition();
+  recognition.continuous=false;
+  recognition.interimResults=true;
+  recognition.lang="en-IN";
+  recognition.onstart=()=>{
+    state.recognizing=true;
+    micBtn.classList.add("mic-active");
+    micBtn.style.background="var(--periwinkle)";
+    micBtn.style.color="#0d1510";
+    micBtn.style.borderColor="transparent";
+    sttBanner.classList.remove("hidden");
+  };
+  recognition.onend=()=>{
+    state.recognizing=false;
+    micBtn.classList.remove("mic-active");
+    micBtn.style.background="transparent";
+    micBtn.style.color="var(--text-mute)";
+    micBtn.style.borderColor="var(--border)";
+    sttBanner.classList.add("hidden");
+  };
+  recognition.onerror=()=>{ recognition.stop(); };
+  recognition.onresult=e=>{
+    let transcript="";
+    for(let i=e.resultIndex;i<e.results.length;i++) transcript+=e.results[i][0].transcript;
+    messageInput.value=transcript;
+    messageInput.style.height="auto";
+    messageInput.style.height=Math.min(messageInput.scrollHeight,160)+"px";
+    if(e.results[e.results.length-1].isFinal){ recognition.stop(); }
+  };
+  micBtn.addEventListener("click",()=>{
+    if(state.recognizing){ recognition.stop(); }
+    else { try{ recognition.start(); }catch(err){ console.warn("STT error:",err); } }
+  });
+} else {
+  micBtn.title="Voice input not supported in this browser";
+  micBtn.style.opacity="0.35";
+  micBtn.disabled=true;
+}
+
+exportBtn.addEventListener("click",()=>{
+  const convo=activeConvo();
+  const blob=new Blob([JSON.stringify({model:"sentience",title:convo.title,messages:convo.messages.map(({role,content})=>({role,content}))},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement("a");
+  a.href=url; a.download=`${(convo.title||"conversation").replace(/[^a-z0-9]+/gi,"-").toLowerCase()}.json`;
+  a.click(); URL.revokeObjectURL(url);
+});
+
+function openSettings(){ endpointInput.value=getEndpoint(); settingsModal.classList.remove("hidden"); }
+function closeSettings(){ settingsModal.classList.add("hidden"); }
+settingsOpenBtn.addEventListener("click",openSettings);
+settingsCloseBtn.addEventListener("click",closeSettings);
+settingsModal.addEventListener("click",e=>{ if(e.target===settingsModal)closeSettings(); });
+settingsSaveBtn.addEventListener("click",()=>{ const v=endpointInput.value.trim(); if(v){setEndpointStorage(v);updateEndpointLabel();setStatus("idle","var(--periwinkle)");} closeSettings(); });
+settingsResetBtn.addEventListener("click",()=>{ setEndpointStorage(DEFAULT_ENDPOINT); endpointInput.value=DEFAULT_ENDPOINT; updateEndpointLabel(); });
+
+renderSidebar(); renderChat(); updateEndpointLabel(); setStatus("idle","var(--periwinkle)"); messageInput.focus();
 })();
 </script>
 </body>

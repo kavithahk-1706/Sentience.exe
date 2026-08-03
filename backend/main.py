@@ -5,6 +5,7 @@ import os
 from google import genai
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 load_dotenv()
 
@@ -16,71 +17,30 @@ client=genai.Client(api_key=GEMINI_API_KEY)
 #load prompt
 with open("system_prompt.md","r") as f:
     SYSTEM_PROMPT=f.read()
-
-
-#helper
-def openai_format_to_gemini(messages):
+    
+async def call_gemini(messages, model_name):
     """
-    The response format given by the competition is OpenAI's LLM call format.
-    Since we're using Gemini, we need to convert the format to suit Gemini's response format.
-    This function helps us do that.
+    this calls gemini with custom settings
+    wrt harm category management
+
     
-    OpenAI Format:
-        
-    {
-        "model": "some-model",
-        "messages": [
-            {"role": "system", "content": "you are a helpful assistant"},
-            {"role": "user", "content": "hey what's up"},
-            {"role": "assistant", "content": "nothing much u?"},
-            {"role": "user", "content": "just chilling"}
-        ]
-    }
-    
-    Gemini Format:
-    
-    {
-        "model": "gemini-2.0-flash",
-        "config": {
-            "system_instruction": "you are a person having a conversation...",
+    """
+    return client.models.generate_content(
+        model=model_name,
+        config={
+            "system_instruction": SYSTEM_PROMPT,
             "temperature": 1.0,
-            "max_output_tokens": 300
+            "max_output_tokens":800,
+            "safety_settings": [
+                {"category":"HARM_CATEGORY_HARRASSMENT","threshold":"BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+            ]
         },
-        "contents": [
-            {
-                "role": "user",
-                "parts": [{"text": "hey what's up"}]
-            },
-            {
-                "role": "model",
-                "parts": [{"text": "nothing much u?"}]
-            },
-            {
-                "role": "user",
-                "parts": [{"text": "just chilling"}]
-            }
-        ]
-    }
-    
-    
-    
-    """
-    history=[]
-    for msg in messages:
-        role=msg.get("role")
-        content=msg.get("content","")
-        
-        if role=="system":
-            continue
-        
-        gemini_role="model" if role=="assistant" else "user"
-        
-        history.append({
-            "role": gemini_role,
-            "parts": [{"text":content}]
-        })
-        
-    return history
+        contents=messages
+    )
+
 
 
 app = FastAPI()
@@ -93,28 +53,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.post("/chat/completions")
 async def chat(request: Request):
-    body = await request.json()
-    messages = body.get("messages", [])
-    model = body.get("model", "default")
+    body=await request.json()
+    messages=body.get("messages",[])
+    model=body.get("model","default")
     
-    gemini_messages=openai_format_to_gemini(messages)
-
-    response=client.models.generate_content(
-        model="gemini-flash-latest",
-        config={
-            "system_instruction": SYSTEM_PROMPT,
-            "temperature":1.0,
-            "max_output_tokens":1024
-        },
-        contents=gemini_messages
-    )
+    gemini_messages=[]
     
-    reply=response.text
-
+    for msg in messages:
+        role=msg.get("role")
+        content=msg.get("content","")
+        if role=="system":
+            continue
+        gemini_role="model" if role=="assistant" else "user"
+        gemini_messages.append({
+            "role":gemini_role,
+            "parts":[{"text":content}]
+        })
+    
+    active_model="gemini-flash-latest"
+        
+    try:
+        response=await asyncio.to_thread(call_gemini,gemini_messages,active_model)
+    except Exception as e:
+        if "429" in str(e) or "quota" in str(e).lower() or "rate" in str(e).lower():
+            active_model="gemini-flash-lite-latest"
+            try:
+                response=await asyncio.to_thread(call_gemini,active_model)
+            except Exception:
+                raise HTTPException(status=429, detail="rate limit hit for both models")
+        else:
+            raise
+    reply=response.text    
+    
     return JSONResponse(content={
-        "id": "chatcmpl-test",
+        "id": f"chatcmpl-{int(time.time())}",
         "object": "chat.completion",
         "created": int(time.time()),
         "model": model,
@@ -127,10 +102,5 @@ async def chat(request: Request):
                 },
                 "finish_reason": "stop"
             }
-        ],
-        "usage": {
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0
-        }
+        ]
     })
