@@ -287,6 +287,10 @@ textarea { font-family: 'Inter', sans-serif; }
       <span>listening…</span>
     </div>
 
+    <div id="cooldownBanner" class="hidden max-w-xl w-full mx-auto mb-2 px-3 py-1.5 rounded-md text-xs flex items-center justify-between mono" style="background:rgba(201,136,154,0.10);border:1px solid var(--blush);color:var(--blush);">
+      <span id="cooldownText">out of messages — resets in --:--</span>
+    </div>
+
     <form id="chatForm" class="max-w-xl w-full mx-auto flex items-end gap-2">
       <div class="relative shrink-0">
         <div class="pulse-ring absolute inset-0 rounded-full" style="background:var(--periwinkle);opacity:0;"></div>
@@ -403,6 +407,32 @@ const exportBtn=$("exportBtn");
 const settingsOpenBtn=$("settingsOpenBtn"),settingsModal=$("settingsModal"),settingsCloseBtn=$("settingsCloseBtn");
 const settingsSaveBtn=$("settingsSaveBtn"),settingsResetBtn=$("settingsResetBtn"),endpointInput=$("endpointInput");
 const micBtn=$("micBtn"),sttBanner=$("sttBanner");
+
+const cooldownBanner=$("cooldownBanner"),cooldownText=$("cooldownText");
+let cooldownInterval=null;
+
+function showCooldown(resetAtSeconds){
+  cooldownBanner.classList.remove("hidden");
+  messageInput.disabled=true; sendBtn.disabled=true;
+  messageInput.placeholder="out of messages for now…";
+  if(cooldownInterval) clearInterval(cooldownInterval);
+  const tick=()=>{
+    const secondsLeft=Math.max(0,Math.round(resetAtSeconds-Date.now()/1000));
+    if(secondsLeft<=0){ hideCooldown(); return; }
+    const mins=Math.floor(secondsLeft/60), secs=secondsLeft%60;
+    cooldownText.textContent = mins>0 ? `out of messages — resets in ${mins}m ${secs}s` : `out of messages — resets in ${secs}s`;
+  };
+  tick();
+  cooldownInterval=setInterval(tick,1000);
+}
+
+function hideCooldown(){
+  if(cooldownInterval) clearInterval(cooldownInterval);
+  cooldownInterval=null;
+  cooldownBanner.classList.add("hidden");
+  messageInput.disabled=false; sendBtn.disabled=false;
+  messageInput.placeholder="say anything…";
+}
 
 function renderSidebar(){
   convoList.innerHTML="";
@@ -543,14 +573,29 @@ function setStatus(text,color){
 function showError(t){ errorMsg.textContent=t; errorMsg.classList.remove("hidden"); }
 function hideError(){ errorMsg.classList.add("hidden"); }
 
-async function sendToBackend(msgs){
-  const payload=msgs.map(({role,content})=>({role,content}));
-  const res=await fetch(getEndpoint(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"sentience",messages:payload})});
-  if(!res.ok) throw new Error(`Server ${res.status}: ${res.statusText}`);
-  const data=await res.json();
-  const reply=data?.choices?.[0]?.message?.content;
-  if(typeof reply!=="string") throw new Error("Unexpected response shape.");
-  return reply;
+async function sendToBackend(msgs) {
+  const payload = msgs.map(({ role, content }) => ({ role, content }));
+  const res = await fetch(getEndpoint(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "sentience", messages: payload }),
+  });
+ 
+  const data = await res.json();
+ 
+  if (res.status === 429 && data?.error?.type === "rate_limited") {
+    const err = new Error("rate_limited");
+    err.isRateLimit = true;
+    err.resetAt = data.error.reset_at;
+    throw err;
+  }
+ 
+  if (!res.ok) throw new Error(`Server ${res.status}: ${res.statusText}`);
+ 
+  const reply = data?.choices?.[0]?.message?.content;
+  if (typeof reply !== "string") throw new Error("Unexpected response shape.");
+ 
+  return { reply, fellBack: !!data?.meta?.fell_back, usedModel: data?.meta?.used_model };
 }
 
 async function revealReply(content,msgIndex){
@@ -605,21 +650,40 @@ function setInFlight(v){
 }
 function maybeSetTitle(convo,text){ if(convo.title==="New chat") convo.title=text.slice(0,42)+(text.length>42?"…":""); }
 
-async function runExchange(convo){
-  hideError(); setInFlight(true); setStatus("thinking…","var(--sage)"); showTypingIndicator();
-  try{
-    const reply=await sendToBackend(convo.messages);
+async function runExchange(convo) {
+  hideError();
+  setInFlight(true);
+  setStatus("thinking…", "var(--sage)");
+  showTypingIndicator();
+  try {
+    const { reply, fellBack } = await sendToBackend(convo.messages);
     removeTypingIndicator();
-    const replyMsg={role:"assistant",content:reply,ts:Date.now()};
-    convo.messages.push(replyMsg); saveConvos();
-    await revealReply(reply,convo.messages.length-1);
-    setStatus("idle","var(--periwinkle)");
-  } catch(err){
+ 
+    const replyMsg = { role: "assistant", content: reply, ts: Date.now() };
+    convo.messages.push(replyMsg);
+    saveConvos();
+    await revealReply(reply, convo.messages.length - 1);
+ 
+    // quiet status-line note only, never a chat bubble — persona shouldn't announce this
+    setStatus(fellBack ? "idle (backup model)" : "idle (primary model)", "var(--periwinkle)");
+  } catch (err) {
     removeTypingIndicator();
-    showError(`couldn't reach backend (${err.message}). check endpoint settings.`);
-    setStatus("error","var(--blush)");
-    convo.messages.pop(); saveConvos(); renderChat();
-  } finally{ setInFlight(false); messageInput.focus(); }
+ 
+    if (err.isRateLimit) {
+      // nothing gets added to chat history — this exchange never happened
+      showCooldown(err.resetAt);
+      setStatus("cooling down", "var(--blush)");
+    } else {
+      showError(`couldn't reach backend (${err.message}). check endpoint settings.`);
+      setStatus("error", "var(--blush)");
+      convo.messages.pop();
+      saveConvos();
+      renderChat();
+    }
+  } finally {
+    setInFlight(false);
+    if (!messageInput.disabled) messageInput.focus();
+  }
 }
 
 chatForm.addEventListener("submit",async e=>{
