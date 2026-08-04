@@ -22,11 +22,17 @@ client=genai.Client(api_key=GEMINI_API_KEY)
 with open("system_prompt.md","r") as f:
     SYSTEM_PROMPT=f.read()
     
-#MODEL CHAIN: We use models in this order
+#we use models in this order for real visitors
 MODEL_CHAIN=["gemini-flash-latest","gemini-flash-lite-latest"]
 
+#for MY OWN testing/casual use via the ?dev=1 flag; doesn't use flash to save the 20 RPD for actual users
+DEV_MODEL_CHAIN=["gemini-flash-lite-latest"]
+
+#both chains need their own cooldown tracking, so just track every model that appears in either chain, once
+ALL_MODELS=list(dict.fromkeys(MODEL_CHAIN+DEV_MODEL_CHAIN))  # dedupe, keep order
+
 #model cooldown tracker: to estimate how long before a model's rate limits reset once hit
-model_cooldowns={name:0 for name in MODEL_CHAIN}
+model_cooldowns={name:0 for name in ALL_MODELS}
 
 def next_midnight_pacific() -> float:
     """
@@ -46,16 +52,18 @@ def mark_model_cooldown(model_name: str, exception_obj:errors.ClientError)->floa
     
     now=time.time()
     error_text=str(exception_obj)
-    
-    # First check: look for retry delay seconds embed
-    match=re.search(r'retryDelay.*?(\d+)s', error_text, re.IGNORECASE)
-    if match:
-        cooldown_until=now+int(match.group(1))
-    elif "perday" in error_text.lower() or "daily" in error_text.lower():
+
+    #check daily-quota FIRST. Google's error bodies can contain BOTH a retryDelay (e.g. "34s") AND a PerDay quotaId in the same response
+    #and the former can be misleading for RPD rate-limit cases
+    if "perday" in error_text.lower() or "daily" in error_text.lower():
         cooldown_until=next_midnight_pacific()
     else:
-        cooldown_until=now+60.0
-        
+        match=re.search(r'retryDelay.*?(\d+)s', error_text, re.IGNORECASE)
+        if match:
+            cooldown_until=now+int(match.group(1))
+        else:
+            cooldown_until=now+60.0
+
     model_cooldowns[model_name]=cooldown_until
     return cooldown_until
     
@@ -96,15 +104,18 @@ async def chat_endpoint(request: Request):
     body=await request.json()
     messages=body.get("messages",[])
     requested_model=body.get("model","default")
+    dev_mode=body.get("dev_mode",False)
+
+    active_chain = DEV_MODEL_CHAIN if dev_mode else MODEL_CHAIN
     
     if not messages:
         return JSONResponse(status_code=400, content={"error": "No messages provided"})
     
-    # very last msg is the active prompt; the rest of it is chat history
+    #very last msg is the active prompt; the rest of it is chat history
     latest_user_msg=messages[-1].get("content","")
     past_messages=messages[:-1]
     
-    # format past messages into gemini's chat history format
+    #format past messages into gemini's chat history format
     gemini_history=[]
     for msg in past_messages:
         role=msg.get("role")
@@ -120,7 +131,7 @@ async def chat_endpoint(request: Request):
     response=None
     
     #fallback exec loop 
-    for i,model_name in enumerate(MODEL_CHAIN):
+    for i,model_name in enumerate(active_chain):
         if model_cooldowns[model_name]>now:
             continue
         try:
@@ -162,13 +173,13 @@ async def chat_endpoint(request: Request):
                     "message": "All model tiers have been exhausted.",
                     "suggested_retry_delay_seconds": seconds_left,
                     "global_cooldown_details": {
-                        name: max(0, int(ts-now)) for name, ts in model_cooldowns
+                        name: max(0, int(ts-now)) for name, ts in model_cooldowns.items()
                     }
                 }
             },
         )
     
-    primary_model=MODEL_CHAIN[0]
+    primary_model=active_chain[0]
     primary_wait_seconds=max(0, int(model_cooldowns[primary_model]-now))
     
     #store response text
