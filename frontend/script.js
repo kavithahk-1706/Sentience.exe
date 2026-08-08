@@ -38,7 +38,23 @@ themeToggle.addEventListener("click", () => {
 function getEndpoint(){ return localStorage.getItem(LS_ENDPOINT) || DEFAULT_ENDPOINT; }
 function setEndpointStorage(u){ localStorage.setItem(LS_ENDPOINT, u); }
 function loadConvos(){ try{ const r=localStorage.getItem(LS_CONVOS); return r?JSON.parse(r):[]; }catch{ return []; } }
-function saveConvos(){ localStorage.setItem(LS_CONVOS, JSON.stringify(state.convos)); }
+
+function saveConvos(){
+  const stripped = state.convos.map(c=>({
+    ...c,
+    messages: c.messages.map(m=>{
+      if(!Array.isArray(m.content)) return m;
+      return {
+        ...m,
+        content: m.content.map(p=>
+          p.type==="image" ? {type:"image_expired"} : p
+        )
+      };
+    })
+  }));
+  localStorage.setItem(LS_CONVOS, JSON.stringify(stripped));
+}
+
 function saveActiveId(){ localStorage.setItem(LS_ACTIVE, state.activeId||""); }
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 
@@ -49,7 +65,9 @@ const state = {
   inFlight: false,
   revealCancel: false,
   recognizing: false,
+  pendingImage: null, // { base64: string, mimeType: string }
 };
+
 if(!state.convos.length){ createConversation(); }
 else if(!state.convos.find(c=>c.id===state.activeId)){ state.activeId=state.convos[0].id; }
 function activeConvo(){ return state.convos.find(c=>c.id===state.activeId); }
@@ -72,6 +90,8 @@ const exportBtn=$("exportBtn");
 const settingsOpenBtn=$("settingsOpenBtn"),settingsModal=$("settingsModal"),settingsCloseBtn=$("settingsCloseBtn");
 const settingsSaveBtn=$("settingsSaveBtn"),settingsResetBtn=$("settingsResetBtn"),endpointInput=$("endpointInput");
 const micBtn=$("micBtn"),sttBanner=$("sttBanner");
+const imgBtn=$("imgBtn"),imgInput=$("imgInput");
+const imgPreviewWrap=$("imgPreviewWrap"),imgPreview=$("imgPreview"),imgClearBtn=$("imgClearBtn");
 
 const cooldownBanner=$("cooldownBanner"),cooldownText=$("cooldownText");
 let cooldownInterval=null;
@@ -156,7 +176,7 @@ function renderChat(){
   scrollToBottom(true);
 }
 
-function appendMessageGroup(role,content,ts,msgIndex){
+function appendMessageGroup(role,content,ts,msgIndex) {
   document.getElementById("emptyState")?.remove();
   const isUser=role==="user";
   const row=document.createElement("div");
@@ -164,15 +184,38 @@ function appendMessageGroup(role,content,ts,msgIndex){
   row.dataset.index=msgIndex;
 
   if(isUser){
-    const fragments=content.split("\n").filter(f=>f.trim().length>0);
+    
     const bubbleWrap=document.createElement("div");
     bubbleWrap.className="flex flex-col gap-1 max-w-[80%]";
-    fragments.forEach(frag=>{
-      const bubble=document.createElement("div");
-      bubble.className="bubble-in user-bubble";
-      bubble.textContent=frag;
-      bubbleWrap.appendChild(bubble);
-    });
+
+    const isMultipart=Array.isArray(content);
+    const textContent=isMultipart?content.find(p=>p.type==="text")?.text||"":content;
+    const imagePart=isMultipart?content.find(p=>p.type==="image"):null;
+
+    if(imagePart && imagePart.type !== "image_expired"){
+      const imgEl=document.createElement("img");
+      imgEl.src=`data:${imagePart.media_type};base64,${imagePart.data}`;
+      imgEl.className="rounded-xl bubble-in";
+      imgEl.style.cssText="max-width:100%;border:1px solid var(--border);";
+      bubbleWrap.appendChild(imgEl);
+    } else if(imagePart && imagePart.type === "image_expired"){
+      const placeholder=document.createElement("div");
+      placeholder.className="rounded-xl bubble-in";
+      placeholder.style.cssText="width:100%;height:48px;background:var(--surface-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;";
+      placeholder.innerHTML=`<span style="color:var(--text-faint);font-size:.7rem;" class="mono">image not stored</span>`;
+      bubbleWrap.appendChild(placeholder);
+    }
+
+    if(textContent){
+      const fragments=textContent.split("\n").filter(f=>f.trim().length>0);
+      fragments.forEach(frag=>{
+        const bubble=document.createElement("div");
+        bubble.className="bubble-in user-bubble";
+        bubble.textContent=frag;
+        bubbleWrap.appendChild(bubble);
+      });
+    }
+
     row.appendChild(bubbleWrap);
   } else {
     const frags=content.split("\n").filter(f=>f.trim().length>0);
@@ -189,7 +232,8 @@ function appendMessageGroup(role,content,ts,msgIndex){
   meta.innerHTML=`<span class="mono text-[10px]" style="color:var(--text-faint);">${formatTime(ts)}</span>`;
   const copyBtn=document.createElement("button");
   copyBtn.className="text-[10px] mono hover:underline"; copyBtn.style.color="var(--text-faint)"; copyBtn.textContent="copy";
-  copyBtn.addEventListener("click",()=>{ navigator.clipboard?.writeText(content); copyBtn.textContent="copied"; setTimeout(()=>copyBtn.textContent="copy",1200); });
+  copyBtn.addEventListener("click",()=>{ const copyText=Array.isArray(content)?content.find(p=>p.type==="text")?.text||"":content;
+  navigator.clipboard?.writeText(copyText); copyBtn.textContent="copied"; setTimeout(()=>copyBtn.textContent="copy",1200); });
   meta.appendChild(copyBtn);
   if(isUser){
     const editBtn=document.createElement("button");
@@ -209,7 +253,9 @@ function appendMessageGroup(role,content,ts,msgIndex){
   }
   row.appendChild(meta);
   chatInner.appendChild(row);
+
   return row;
+
 }
 
 function scrollToBottom(force=false){
@@ -359,17 +405,40 @@ chatForm.addEventListener("submit",async e=>{
   const convo=activeConvo();
   if(state.editingIndex!==null){
     convo.messages=convo.messages.slice(0,state.editingIndex);
-    convo.messages.push({role:"user",content:text,ts:Date.now()});
+    
+    const editContent = state.pendingImage
+      ? [
+          {type:"image", data:state.pendingImage.base64, media_type:state.pendingImage.mimeType},
+          {type:"text", text}
+        ]
+      : text;
+    convo.messages.push({role:"user",content:editContent,ts:Date.now()});
+    clearImagePreview();
+
     maybeSetTitle(convo,text); state.editingIndex=null; hideEditBanner();
     saveConvos(); renderSidebar(); renderChat();
   } else {
-    const userMsg={role:"user",content:text,ts:Date.now()};
+    
+    const msgContent = state.pendingImage
+    ? [
+        {type:"image", data:state.pendingImage.base64, media_type:state.pendingImage.mimeType},
+        {type:"text", text}
+      ]
+    : text;
+    
+    const userMsg={role:"user",content:msgContent,ts:Date.now()};
+
+
     convo.messages.push(userMsg); maybeSetTitle(convo,text);
     saveConvos(); renderSidebar();
-    appendMessageGroup("user",text,userMsg.ts,convo.messages.length-1);
+    appendMessageGroup("user",msgContent,userMsg.ts,convo.messages.length-1);
     scrollToBottom(true);
   }
+  
   messageInput.value=""; messageInput.style.height="auto";
+
+  clearImagePreview();
+
   await runExchange(convo);
 });
 
@@ -380,12 +449,18 @@ function regenerateLast(){
   saveConvos(); renderChat(); runExchange(convo);
 }
 function startEdit(idx){
+
   const msg=activeConvo().messages[idx];
   if(!msg||msg.role!=="user")return;
-  state.editingIndex=idx; messageInput.value=msg.content;
-  messageInput.style.height="auto"; messageInput.style.height=Math.min(messageInput.scrollHeight,160)+"px";
-  editBanner.classList.remove("hidden"); messageInput.focus();
+  state.editingIndex=idx;
+  
+  const textContent=Array.isArray(msg.content)
+    ? msg.content.find(p=>p.type==="text")?.text||""
+    : msg.content;
+  
+  messageInput.value=textContent;
 }
+
 function hideEditBanner(){ editBanner.classList.add("hidden"); }
 cancelEditBtn.addEventListener("click",()=>{ state.editingIndex=null; messageInput.value=""; hideEditBanner(); });
 
@@ -437,6 +512,48 @@ if(SpeechRecognition){
   micBtn.style.opacity="0.35";
   micBtn.disabled=true;
 }
+
+function setImagePreview(base64, mimeType){
+  state.pendingImage={base64, mimeType};
+  imgPreview.src=`data:${mimeType};base64,${base64}`;
+  imgPreviewWrap.classList.remove("hidden");
+}
+
+function clearImagePreview(){
+  state.pendingImage=null;
+  imgPreview.src="";
+  imgPreviewWrap.classList.add("hidden");
+  imgInput.value="";
+}
+
+imgBtn.addEventListener("click",()=>imgInput.click());
+
+imgInput.addEventListener("change",()=>{
+  const file=imgInput.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const base64=e.target.result.split(",")[1];
+    setImagePreview(base64, file.type);
+  };
+  reader.readAsDataURL(file);
+});
+
+imgClearBtn.addEventListener("click",clearImagePreview);
+
+messageInput.addEventListener("paste",e=>{
+  const items=[...(e.clipboardData?.items||[])];
+  const imageItem=items.find(item=>item.type.startsWith("image/"));
+  if(!imageItem)return;
+  e.preventDefault();
+  const file=imageItem.getAsFile();
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const base64=ev.target.result.split(",")[1];
+    setImagePreview(base64, file.type);
+  };
+  reader.readAsDataURL(file);
+});
 
 exportBtn.addEventListener("click",()=>{
   const convo=activeConvo();

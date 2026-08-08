@@ -3,13 +3,14 @@ import re
 import time
 import asyncio
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
-from google.genai import errors
+from google.genai import errors, types
+import base64
+
 
 #init env vars
 load_dotenv()
@@ -38,10 +39,13 @@ def next_midnight_pacific() -> float:
     """
     Calculates daily Gemini quota reset time at midnight Pacific
     """
-    pacific=ZoneInfo("America/Los_Angeles")
-    now=datetime.now(pacific)
-    reset=(now+timedelta(days=1)).replace(hour=0,minute=0,second=0,microsecond=0)
-    return reset.timestamp()
+    now_utc = datetime.utcnow()
+    pacific_offset = timedelta(hours=8)
+    now_pacific = now_utc - pacific_offset
+    midnight_pacific = (now_pacific + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return (midnight_pacific + pacific_offset).timestamp()
 
 
 def mark_model_cooldown(model_name: str, exception_obj:errors.ClientError)->float:
@@ -69,8 +73,28 @@ def mark_model_cooldown(model_name: str, exception_obj:errors.ClientError)->floa
     
     
     
+def build_parts(content):
+    """
+    Builds the user response by handling different cases differently. (eg: text, img, text+img)
+    """
     
-def call_gemini_chat_stateless(gemini_history,new_message_text, model_name):
+    if isinstance(content,str):
+        return [types.Part.from_text(text=content)]
+    parts=[]
+    
+    for part in content:
+        if part.get("type")=="image":
+            parts.append(types.Part.from_bytes(
+                data=base64.b64decode(part["data"]),
+                mime_type=part["media_type"]        
+            ))
+        
+        elif part.get("type")=="text":
+            parts.append(types.Part.from_text(text=part["text"]))
+    return parts
+
+    
+def call_gemini_chat_stateless(gemini_history,new_message_content, model_name):
     """
     Spins up a native Gemini Chat session on the fly, populates it with past history,
     and executes only the latest message turn.
@@ -86,7 +110,9 @@ def call_gemini_chat_stateless(gemini_history,new_message_text, model_name):
         history=gemini_history
     )
     
-    return chat.send_message(new_message_text)
+    final_response=chat.send_message(build_parts(new_message_content))
+    
+    return final_response
     
 
 #main
@@ -99,8 +125,10 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+
 @app.post("/chat/completions")
 async def chat_endpoint(request: Request):
+
     body=await request.json()
     messages=body.get("messages",[])
     requested_model=body.get("model","default")
@@ -123,7 +151,7 @@ async def chat_endpoint(request: Request):
         if role=="system":
             continue
         gemini_role="model" if role=="assistant" else "user"
-        gemini_history.append({"role": gemini_role, "parts": [{"text":content}]})
+        gemini_history.append(types.Content(role=gemini_role,parts=build_parts(content)))
         
     now=time.time()
     used_model=None
@@ -171,6 +199,7 @@ async def chat_endpoint(request: Request):
                 "error": {
                     "type": "rate_limited",
                     "message": "All model tiers have been exhausted.",
+                    "reset_at": soonest_reset,       
                     "suggested_retry_delay_seconds": seconds_left,
                     "global_cooldown_details": {
                         name: max(0, int(ts-now)) for name, ts in model_cooldowns.items()
