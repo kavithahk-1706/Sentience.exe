@@ -2,7 +2,7 @@
 "use strict";
 
 
-const DEFAULT_ENDPOINT = "http://localhost:8000/chat/completions";
+const DEFAULT_ENDPOINT = "https://sentience-exe.onrender.com/chat/completions";
 const LS_ENDPOINT      = "sentience_endpoint";
 const LS_CONVOS        = "sentience_conversations";
 const LS_ACTIVE        = "sentience_active_convo";
